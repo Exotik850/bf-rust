@@ -9,10 +9,10 @@ const MAX_ITER: u64 = 1000000000;
 // The BfToken enum represents the possible operations in Brainfuck language.
 #[derive(Debug, Copy, Clone)]
 enum BfToken {
-    INC(usize),
-    DEC(usize),
-    LEF(usize),
-    RIG(usize),
+    INC(usize), // Increment the current cell by N
+    DEC(usize), // Decrement the current cell by N
+    LEF(usize), // Move the pointer to the left by N
+    RIG(usize), // Move the pointer to the right by N
     JUM,  // Jump if the value of the current cell is zero
     BAC,  // Jump to the matching opening bracket
     ACC,  // Accept one byte of input, storing its value in the current cell
@@ -20,11 +20,10 @@ enum BfToken {
     NAN,  // Not a valid operation
 }
 
-// Implements the PartialEq trait to compare two BfToken instances.
 impl PartialEq for BfToken {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            // Match against the same variant for each operation, and compare the value (if any).
+            // Match against the same variant for each operation
             (Self::INC(_), Self::INC(_)) => true,
             (Self::DEC(_), Self::DEC(_)) => true,
             (Self::LEF(_), Self::LEF(_)) => true,
@@ -56,7 +55,6 @@ impl From<char> for BfToken {
     }
 }
 
-// Implements methods for the BfToken enum.
 impl BfToken {
     // Converts a string of Brainfuck code to a vector of BfToken instances and a vector of jump positions.
     fn from_source(code: &str) -> (Vec<Self>, Vec<usize>) {
