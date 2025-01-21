@@ -1,8 +1,6 @@
-use std::collections::HashMap;
-use std::io::{Read, Write};
-use std::num::Wrapping;
-use std::ops::{AddAssign, Deref};
-use std::time::SystemTime;
+use std::io::Read;
+use std::ops::AddAssign;
+use std::time::{Instant, SystemTime};
 
 const MAX_ITER: u64 = 1000000000;
 
@@ -57,9 +55,34 @@ impl AddAssign for BfToken {
 }
 
 impl BfToken {
+    fn find_jumps(tokens: &Vec<Self>) -> Vec<usize> {
+        // Create a map of the jumps for the bracket commands
+        let mut jumps = vec![0; tokens.len()];
+        let mut queue = vec![];
+        for (idx, token) in tokens.iter().enumerate() {
+            match token {
+                BfToken::JUM => queue.push(idx),
+                BfToken::BAC => {
+                    let temp = queue
+                        .pop()
+                        .unwrap_or_else(|| panic!("Unopened bracket at {idx}"));
+
+                    // Write the jump destination to the index of the token
+                    jumps[temp] = idx;
+                    jumps[idx] = temp;
+                }
+                _ => (),
+            }
+        }
+
+        assert!(queue.is_empty(), "Unclosed bracket");
+
+        jumps
+    }
+
     // Converts a string of Brainfuck code to a vector of BfToken instances and a vector of jump positions.
     fn from_source(code: &str) -> (Vec<Self>, Vec<usize>) {
-        let start = SystemTime::now();
+        let start = Instant::now();
         // Filter out invalid operations and collect the remaining ones in a vector.
         let mut tokens: Vec<BfToken> = code
             .chars()
@@ -80,31 +103,9 @@ impl BfToken {
             acc
         });
 
-        // Create a map of the jumps for the bracket commands
-        let mut jumps = vec![0; code.len()];
-        let mut queue = vec![];
-        for (idx, token) in tokens.iter().enumerate() {
-            match token {
-                BfToken::JUM => queue.push(idx),
-                BfToken::BAC => {
-                    let temp = queue.pop().expect(&format!("Unopened bracket at {idx}"));
+        let jumps = Self::find_jumps(&tokens);
 
-                    // Write the jump destination to the index of the token
-                    jumps[temp] = idx;
-                    jumps[idx] = temp;
-                }
-                _ => (),
-            }
-        }
-
-        if !queue.is_empty() {
-            panic!("Unclosed brackets at {queue:?}")
-        }
-
-        println!(
-            "Compilation time: {:?}",
-            SystemTime::now().duration_since(start).unwrap()
-        );
+        println!("Compilation time: {:?}", start.elapsed());
 
         (tokens, jumps)
     }
@@ -121,16 +122,11 @@ fn parse(code: &str) {
     let mut input: Vec<u8> = vec![];
     if tokens.contains(&BfToken::ACC) {
         println!("Enter the input string for the code: ");
-        let mut string = "".to_string();
-        std::io::stdin().read_line(&mut string).unwrap();
-        if string.chars().all(|p| p.is_numeric()) {
-            input = vec![string.parse::<u8>().unwrap()]
-        } else {
-            input = string.chars().rev().map(|x| x as u8).collect();
-        }
+        std::io::stdin().read_to_end(&mut input).unwrap();
+        input.reverse();
     }
 
-    let start = SystemTime::now();
+    let start = Instant::now();
     let mut out: Vec<char> = vec![];
     let mut iter = 0u64; // For optional iteration cap
     while idx < tokens.len() {
@@ -140,16 +136,16 @@ fn parse(code: &str) {
                     let n = N as usize;
                     // Check if there is room on the stack to move right, if not make room
                     if pointer + n >= stack.len() {
-                        stack.extend(vec![0; n]);
+                        stack.extend(std::iter::repeat_n(0, n));
                     }
                     pointer += n;
                 } else {
                     // Opposite for moving left
-                    let n = N.abs() as usize;
+                    let n = N.unsigned_abs();
                     if pointer >= n {
-                        pointer -= n
+                        pointer -= n;
                     } else {
-                        stack.splice(0..0, vec![0; n - pointer]);
+                        stack.splice(0..0, std::iter::repeat_n(0, n - pointer));
                     }
                 }
             }
@@ -162,12 +158,12 @@ fn parse(code: &str) {
             }
             BfToken::JUM => {
                 if stack[pointer] == 0 {
-                    idx = jumps[idx]
+                    idx = jumps[idx];
                 }
             }
             BfToken::BAC => {
                 if stack[pointer] != 0 {
-                    idx = jumps[idx]
+                    idx = jumps[idx];
                 }
             }
             BfToken::ACC => stack[pointer] = input.pop().unwrap_or(0),
@@ -177,8 +173,8 @@ fn parse(code: &str) {
         idx += 1;
         iter += 1;
     }
-    let time = SystemTime::now().duration_since(start).unwrap();
-    println!("{:?}", stack);
+    let time = start.elapsed();
+    println!("{stack:?}");
     println!("{}", out.iter().collect::<String>());
     println!("Time taken: {time:?}\nCommands Processed: {iter}");
     // println!("{tokens:?}");
