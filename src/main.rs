@@ -44,6 +44,36 @@ impl From<char> for BfToken {
     }
 }
 
+impl From<BfToken> for String {
+    fn from(value: BfToken) -> Self {
+        match value {
+            BfToken::CEL(n) => {
+                if n > 0 {
+                    "+".repeat(n as usize)
+                } else if n < 0 {
+                    "-".repeat(n as usize)
+                } else {
+                    "".to_string()
+                }
+            }
+            BfToken::MOV(n) => {
+                if n > 0 {
+                    ">".repeat(n as usize)
+                } else if n < 0 {
+                    "<".repeat(n as usize)
+                } else {
+                    "".to_string()
+                }
+            }
+            BfToken::JUM => {"[".to_string()}
+            BfToken::BAC => {"]".to_string()}
+            BfToken::ACC => {",".to_string()}
+            BfToken::OUT => {".".to_string()}
+            BfToken::NAN => {"".to_string()}
+        }
+    }
+}
+
 impl AddAssign for BfToken {
     fn add_assign(&mut self, rhs: Self) {
         match (self, &rhs) {
@@ -149,11 +179,11 @@ fn parse(code: &str) {
                     }
                 }
             }
-            BfToken::CEL(N) => {
-                if N > 0 {
-                    stack[pointer] = stack[pointer].wrapping_add(N as u8);
+            BfToken::CEL(n) => {
+                if n > 0 {
+                    stack[pointer] = stack[pointer].wrapping_add(n as u8);
                 } else {
-                    stack[pointer] = stack[pointer].wrapping_sub((-N) as u8);
+                    stack[pointer] = stack[pointer].wrapping_sub((-n) as u8);
                 }
             }
             BfToken::JUM => {
